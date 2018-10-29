@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Choropleth Map built with ArcGIS API</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.9/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.9/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    .esri-legend {
+      background-color: whitesmoke;
+      color: darkslategray;
+    }
+  </style>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend"
+    ], function (
+      Map, MapView, FeatureLayer, Legend
+    ) {
+
+        /**
+          * Symbol constructor for class breaks.
+          */
+        function ClassSymbol(color) {
+          this.type = "simple-fill"; // autocasts as new SimpleFillSymbol()
+          this.color = color;
+          this.style = "solid";
+          this.outline = {
+            width: 0.5,
+            color: "white"
+          };
+        }
+
+        /*****************************************************************
+         * Set each unique value directly in the renderer's constructor.
+         * At least one field must be used (in this case the "Net_AV" field).
+         * The label property of each unique value will be used to indicate
+         * the field value and symbol in the legend.
+         *****************************************************************/
+
+        var renderer = {
+          type: "class-breaks", // autocasts as new ClassBreaksRenderer()
+          field: "Net_AV",
+          normalizationField: "Shape__Area",
+          defaultSymbol: new ClassSymbol("gray"),
+          defaultLabel: "no data",
+          classBreakInfos: [{
+            minValue: 0,
+            maxValue: 499,
+            symbol: new ClassSymbol("#edf8e9"),
+            label: "< 500"
+          }, {
+            minValue: 500,
+            maxValue: 999,
+            symbol: new ClassSymbol("#bae4b3"),
+            label: "500 - 999"
+          }, {
+            minValue: 1000,
+            maxValue: 1499,
+            symbol: new ClassSymbol("#74c476"),
+            label: "100 - 1499"
+          }, {
+            minValue: 1500,
+            maxValue: 100000000000000,
+            symbol: new ClassSymbol("#238b45"),
+            label: "> 1500"
+          }]
+        };
+
+        var parcelLayer = new FeatureLayer({
+          url: "https://services2.arcgis.com/O58rArTfMrHQdvbC/ArcGIS/rest/services/Tax_Parcels/FeatureServer",
+          renderer: renderer,
+          outFields: ["Net_AV", "Shape__Area", "ValReason",
+            "APN"
+          ],
+          popupTemplate: { // autocast as esri/PopupTemplate
+            title: "APN {APN}",
+            content: "Value Reason : {ValReason}<br/>" +
+            "Net Assessed Value : {Net_AV}<br/>" +
+            "Parcel Size : {Shape__Area}"
+          },
+          // show only block groups in Seattle
+          definitionExpression: "TRA = '008003' AND Shape__Area > 0"
+        });
+
+        var map = new Map({
+          basemap: "gray",
+          layers: [parcelLayer]
+        });
+
+        var view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [-119.8, 34.45],
+          zoom: 14
+        });
+
+        /******************************************************************
+         *
+         * Add layers to layerInfos on the legend
+         *
+         ******************************************************************/
+
+        var legend = new Legend({
+          view: view,
+          layerInfos: [
+            {
+              layer: parcelLayer,
+              title: "Net Assessed Value normalized by parcel size"
+            }]
+        });
+
+        view.ui.add(legend, "top-right");
+
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
